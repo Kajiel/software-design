@@ -21,8 +21,35 @@ namespace lab3
 
         public class Book
         {
-            public string Title { get; set; }
-            public string Author { get; set; }
+            private string _title;
+            private string _author;
+
+            public string Title 
+            { 
+                get => _title;
+                set
+                {
+                    if (string.IsNullOrWhiteSpace(value))
+                    {
+                        throw new ArgumentException("Title cannot be empty or whitespace.");
+                    }
+                    _title = value;
+                }
+            }
+
+            public string Author 
+            { 
+                get => _author;
+                set
+                {
+                    if (string.IsNullOrWhiteSpace(value))
+                    {
+                        throw new ArgumentException("Author cannot be empty or whitespace.");
+                    }
+                    _author = value;
+                }
+            }
+
             public virtual string GetInfo()
             {
                 return $"{Title} by {Author}";
@@ -30,7 +57,21 @@ namespace lab3
         }
         public class Magazine : Book
         {
-            public int IssueNumber { get; set; }
+            private int _issueNumber;
+            
+            public int IssueNumber 
+            { 
+                get => _issueNumber;
+                set
+                {
+                    if (value < 0)
+                    {
+                        throw new ArgumentException("Issue number cannot be negative.");
+                    }
+                    _issueNumber = value;
+                }
+            }
+            
             public override string GetInfo()
             {
                 return $"{Title} - Issue #{IssueNumber}";
@@ -45,6 +86,30 @@ namespace lab3
             {
                 return $"{Title} by {Author} - {FileSize}MB ({Format})";
             }
+        }
+
+        public class Textbook : Book
+        {
+            private string _subject;
+
+            public string Subject 
+            { 
+                get => _subject;
+                set
+                {
+                    if (string.IsNullOrWhiteSpace(value))
+                    {
+                        throw new ArgumentException("Subject cannot be empty or whitespace.");
+                    }
+                    _subject = value;
+                }
+            }
+
+            public override string GetInfo()
+            {
+                return $"{Title} by {Author} - Subject: {Subject}";
+            }
+
         }
 
         //Polymorphic Function to process array of Books
@@ -93,6 +158,13 @@ namespace lab3
                     Author = "Various",
                     IssueNumber = 45
                 },
+                new Textbook
+                {
+                    Subject = "Mathematics",
+                    Title = "Calculus 101",
+                    Author = "Melenia Derek"
+
+                }
 
             };
             ProcessBooks(bookCollection);

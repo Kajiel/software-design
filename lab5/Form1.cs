@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.EntityFrameworkCore.Query;
 namespace lab5
 {
     public partial class Form1 : Form
@@ -7,16 +7,26 @@ namespace lab5
         public Form1()
         {
             InitializeComponent();
+            InitializeDatabase();
+        }
+
+        private void InitializeDatabase()
+        {
+            using (var context = new BookstoreContext())
+            {
+                context.Database.EnsureDeleted();
+                context.Database.EnsureCreated();
+            }
         }
 
         public class Author
         {
             public int AuthorID { get; set; }
             public string Name { get; set; }
-            public virtual ICollection<Books> Books { get; set; }
+            public virtual ICollection<Book> Books { get; set; }
         }
 
-        public class Books
+        public class Book
         {
             public int BookID { get; set; }
             public string Title { get; set; }
@@ -30,13 +40,11 @@ namespace lab5
             using (var context = new BookstoreContext())
             {
                 var author = new Author { Name = auhtorName };
-                var book = new Books { Title = bookTitle, Author = author };
+                var book = new Book { Title = bookTitle, Author = author };
 
                 context.Authors.Add(author);
                 context.Books.Add(book);
                 context.SaveChanges();
-                MessageBox.Show("Author and Book added successfully!");
-
             }
         }
         public List<string> GetBooksWithAuthors()
@@ -51,7 +59,22 @@ namespace lab5
                 return booksWithAuthors;
             }
         }
+        //==========================================================================================================
+        //Task 7
+        public List<string> SearchBooksByAuthor(string authorName)
+        {
+            using (var context = new BookstoreContext())
+            {
+                var booksByAuthor = context.Books
+                    .Include(b => b.Author)
+                    .Where(b => b.Author.Name.Contains(authorName))
+                    .Select(b => $"{b.Title} by {b.Author.Name}")
+                    .ToList();
+                return booksByAuthor;
+            }
 
+        }
+        //==========================================================================================================
         public void UpdateBookAndAuthors(int bookId, string newTitle, string newAuthor)
         {
             using (var context = new BookstoreContext())
@@ -75,27 +98,29 @@ namespace lab5
 
         private void btnShowBook_Click(object sender, EventArgs e)
         {
-            var books = GetBooksWithAuthors();
-            BookBox.DataSource = books;
-        }
-
-        private void button1_Click(object sender, EventArgs e)
-        {
-            int bookId = int.Parse(txtBookBox.Text);
-            UpdateBookAndAuthors(bookId, txtBookTitle.Text, txtAuthorName.Text);
-            MessageBox.Show("Book and Author updated successfully!");
-        }
-
-        //Task 7
-        public void DeleteBookAndAuthors() 
-        {
-            using (var context = new BookstoreContext()) 
+            if (string.IsNullOrWhiteSpace(txtAuthorName.Text))
             {
-                var book = context.Books.Include(b => b.Author).FirstOrDefault(b => b.BookID == 1);
+                var books = SearchBooksByAuthor(txtAuthorName.Text);
+                BookBox.DataSource = books;
+            }
+            else
+            {
+                var books = GetBooksWithAuthors();
+                BookBox.DataSource = books;
+            }
+
+        }
+
+        //==========================================================================================================
+        //Task 6
+        public void DeleteBook(int bookId)
+        {
+            using (var context = new BookstoreContext())
+            {
+                var book = context.Books.FirstOrDefault(b => b.BookID == 1);
                 if (book != null)
                 {
                     context.Books.Remove(book);
-                    context.Authors.Remove(book.Author);
                     context.SaveChanges();
                     MessageBox.Show("Book and Author deleted successfully!");
                 }
@@ -106,21 +131,45 @@ namespace lab5
             }
         }
 
-        public List<string> SearchBooksByAuthor(string authorName)
+        private void btnDelete_Click(object sender, EventArgs e)
         {
-            using (var context = new BookstoreContext())
+            if (int.TryParse(txtBookBox.Text, out int bookId))
             {
-                var booksByAuthor = context.Books
-                    .Include(b => b.Author)
-                    .Where(b => b.Author.Name.Contains(authorName))
-                    .Select(b => $"{b.Title} by {b.Author.Name}")
-                    .ToList();
-                return booksByAuthor;
+                DeleteBook(bookId);
+                var books = GetBooksWithAuthors();
+                BookBox.DataSource = null;
+                BookBox.DataSource = books;
             }
+            else
+            {
+                MessageBox.Show("Please enter a valid Book ID.");
+            }
+        }
+        //==========================================================================================================
+        private void btnAdd_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtAuthorName.Text) && !string.IsNullOrWhiteSpace(txtBookTitle.Text))
+            {
+                MessageBox.Show("Please enter both Author Name and Book Title.");
+                return;
+            }
+            AddAuthorWithBooks(txtAuthorName.Text, txtBookTitle.Text);
 
         }
 
-
-
+        private void btnUpdate_Click(object sender, EventArgs e)
+        {
+            if (int.TryParse(txtBookBox.Text, out int bookId))
+            {
+                UpdateBookAndAuthors(bookId, txtBookTitle.Text, txtAuthorName.Text);
+                var books = GetBooksWithAuthors();
+                BookBox.DataSource = null;
+                BookBox.DataSource = books;
+            }
+            else
+            {
+                MessageBox.Show("Please enter a valid Book ID.");
+            }
+        }
     }
 }

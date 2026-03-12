@@ -14,7 +14,7 @@ namespace lab5
         {
             using (var context = new BookstoreContext())
             {
-                context.Database.EnsureDeleted();
+                
                 context.Database.EnsureCreated();
             }
         }
@@ -35,28 +35,27 @@ namespace lab5
 
         }
 
-        public void AddAuthorWithBooks(string auhtorName, string bookTitle)
+        public void AddAuthorWithBooks(string authorName, string bookTitle)
         {
             using (var context = new BookstoreContext())
             {
-                var author = new Author { Name = auhtorName };
+                var author = new Author { Name = authorName };
                 var book = new Book { Title = bookTitle, Author = author };
 
-                context.Authors.Add(author);
-                context.Books.Add(book);
+                context.Books.Add(book);   // adding book is enough; author will be added too
                 context.SaveChanges();
+
+                MessageBox.Show($"Saved!\nBookID: {book.BookID}\nAuthorID: {author.AuthorID}");
             }
         }
         public List<string> GetBooksWithAuthors()
         {
             using (var context = new BookstoreContext())
             {
-                var booksWithAuthors = context.Books
+                return context.Books
                     .Include(b => b.Author)
-                    .Select(b => $"{b.Title} by {b.Author.Name}")
+                    .Select(b => $"[{b.BookID}] {b.Title} by {b.Author.Name}")
                     .ToList();
-
-                return booksWithAuthors;
             }
         }
         //==========================================================================================================
@@ -75,25 +74,43 @@ namespace lab5
 
         }
         //==========================================================================================================
-        public void UpdateBookAndAuthors(int bookId, string newTitle, string newAuthor)
+        public void UpdateBookAndAuthors(int bookId, string newTitle, string newAuthorName)
         {
             using (var context = new BookstoreContext())
             {
-                var book = context.Books.Include(b => b.Author).FirstOrDefault(b => b.BookID == bookId);
-                if (book != null)
-                {
-                    book.Title = newTitle;
-                    book.Author.Name = newAuthor;
-                    context.SaveChanges();
-                    MessageBox.Show("Book title and author updated successfully!");
-                }
-                else
+                var book = context.Books
+                    .Include(b => b.Author)
+                    .FirstOrDefault(b => b.BookID == bookId);
+
+                if (book == null)
                 {
                     MessageBox.Show("Book not found.");
+                    return;
                 }
+
+                // Update title (only if provided)
+                if (!string.IsNullOrWhiteSpace(newTitle))
+                    book.Title = newTitle;
+
+                // Re-assign author (only if provided)
+                if (!string.IsNullOrWhiteSpace(newAuthorName))
+                {
+                    var existingAuthor = context.Authors
+                        .FirstOrDefault(a => a.Name == newAuthorName);
+
+                    if (existingAuthor == null)
+                    {
+                        existingAuthor = new Author { Name = newAuthorName };
+                        context.Authors.Add(existingAuthor);
+                    }
+
+                    book.Author = existingAuthor;
+                    book.AuthorID = existingAuthor.AuthorID; // optional; EF will handle via navigation too
+                }
+
+                context.SaveChanges();
+                MessageBox.Show("Book updated successfully!");
             }
-
-
         }
 
         private void btnShowBook_Click(object sender, EventArgs e)
@@ -117,33 +134,34 @@ namespace lab5
         {
             using (var context = new BookstoreContext())
             {
-                var book = context.Books.FirstOrDefault(b => b.BookID == 1);
-                if (book != null)
-                {
-                    context.Books.Remove(book);
-                    context.SaveChanges();
-                    MessageBox.Show("Book and Author deleted successfully!");
-                }
-                else
+                var book = context.Books
+                    .Include(b => b.Author)
+                    .FirstOrDefault(b => b.BookID == bookId);
+
+                if (book == null)
                 {
                     MessageBox.Show("Book not found.");
+                    return;
                 }
+
+                context.Books.Remove(book);
+                context.SaveChanges();
+
+                MessageBox.Show("Book deleted successfully!");
             }
         }
 
         private void btnDelete_Click(object sender, EventArgs e)
         {
-            if (int.TryParse(txtBookBox.Text, out int bookId))
-            {
-                DeleteBook(bookId);
-                var books = GetBooksWithAuthors();
-                BookBox.DataSource = null;
-                BookBox.DataSource = books;
-            }
-            else
+            if (!int.TryParse(txtBookBox.Text, out int bookId))
             {
                 MessageBox.Show("Please enter a valid Book ID.");
+                return;
             }
+
+            DeleteBook(bookId);
+
+            BookBox.DataSource = GetBooksWithAuthors();
         }
         //==========================================================================================================
         private void btnAdd_Click(object sender, EventArgs e)
@@ -159,17 +177,20 @@ namespace lab5
 
         private void btnUpdate_Click(object sender, EventArgs e)
         {
-            if (int.TryParse(txtBookBox.Text, out int bookId))
-            {
-                UpdateBookAndAuthors(bookId, txtBookTitle.Text, txtAuthorName.Text);
-                var books = GetBooksWithAuthors();
-                BookBox.DataSource = null;
-                BookBox.DataSource = books;
-            }
-            else
+            if (!int.TryParse(txtBookBox.Text, out int bookId))
             {
                 MessageBox.Show("Please enter a valid Book ID.");
+                return;
             }
+
+            if (string.IsNullOrWhiteSpace(txtBookTitle.Text) && string.IsNullOrWhiteSpace(txtAuthorName.Text))
+            {
+                MessageBox.Show("Enter a new title and/or a new author name.");
+                return;
+            }
+
+            UpdateBookAndAuthors(bookId, txtBookTitle.Text, txtAuthorName.Text);
+            BookBox.DataSource = GetBooksWithAuthors();
         }
     }
 }
